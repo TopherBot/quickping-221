@@ -1,0 +1,55 @@
+name: CI
+
+# Trigger on pushes, PRs to main and manual dispatch
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Security‑hardened defaults
+permissions:
+  contents: read   # read‑only access to the repo
+  actions: read
+  checks: write   # needed for the test reporter
+  # No write permissions to the repo – prevents accidental pushes
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d1c3f8d6e30ed4a5c5c86b091c2e2c018eaa57b0  # pinned SHA
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@d5f879a8e4f5c0c91a2afc9c2fe8a5c0e035d1b2  # pinned SHA
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip packages
+        uses: actions/cache@368e5b0c5da1c776a7e9c906e6637cfa1c9e1a9d  # pinned SHA
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install package and test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev]
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Build wheel (artifact)
+        run: |
+          python -m pip install build
+          python -m build --sdist --wheel
+        # Upload as artifact for later manual download
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@5b9c5b6adb4e5c5e1a2a20f8b6c0a2d831c5e8f3  # pinned SHA
+        with:
+          name: quickping-dist
+          path: dist/*
